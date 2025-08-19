@@ -1,0 +1,67 @@
+/*
+  The CSS in this style tag is based off of Bear Blog's default CSS.
+  https://github.com/HermanMartinus/bearblog/blob/297026a877bc2ab2b3bdfbd6b9f7961c350917dd/templates/styles/blog/default.css
+  License MIT: https://github.com/HermanMartinus/bearblog/blob/master/LICENSE.md
+ */
+
+:root {
+	--bg: #000;
+	--fg: #fff;
+	--font: "Inconsolata", monospace;
+}
+
+@font-face {
+	font-family: "Inconsolata";
+	src: url("/inconsolata-latin-400-normal.woff2") format("woff2");
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: "Inconsolata";
+	src: url("/inconsolata-latin-700-normal.woff2") format("woff2");
+	font-weight: 700;
+	font-style: normal;
+	font-display: swap;
+}
+
+body {
+	background-color: var(--bg);
+	color: var(--fg);
+	font-family: var(--font);
+	--font-size: 1rem;
+	--padding: 1rem;
+}
+main {
+	padding: var(--padding);
+	width: calc(100% - var(--padding) * 2);
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	text-align: left;
+	overflow-wrap: break-word;
+	max-width: calc(var(--size) - var(--padding) * 2);
+	font-size: var(--font-size)
+}
+
+.container {
+	display: flex;
+	width: 100%;
+	justify-content: center
+}
+
+a {
+	color: var(--fg)
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	margin: .5rem 0
+}
+h1 {
+	font-size: 1.5rem
+}

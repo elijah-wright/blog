@@ -1,0 +1,48 @@
+---
+title: 'Secure Boot and You'
+description: 'a look at how Secure Boot works'
+pubDate: 'Aug 11 2025'
+---
+
+recently, Electronic Arts released [*Battlefield 6*](https://en.wikipedia.org/wiki/Battlefield_6) and included an anti-cheat that forces you to enable Secure Boot, things haven't gone great to say the least
+
+import Tweet from 'astro-tweet';
+
+<Tweet id="1953506715313263085" />
+
+there is something to be said about how EA has handled the situation but that's not what most of this post is going to be about. instead, I'll try to explain how Secure Boot works in a way that makes sense for most people just trying to play a video game
+
+Secure Boot protects against a particular kind of attack vector: malware that affects the [chain of trust](https://en.wikipedia.org/wiki/Chain_of_trust). the principle here is trusting the environment that code is running in
+
+some anticheats, such as [Hyperion](https://breeze.nohost.network/roblox/wiki/Hyperion), which is used by Roblox, operate in the "user mode". that approach works for Roblox because its target audience is younger. the drawback is that anticheats such as Hyperion are limited in what they can do, such as modifying a program's working set to detect external memory modifications, [protecting](https://learn.microsoft.com/en-us/windows/win32/secbp/control-flow-guard) a program's control flow, and using techniques such as [instrumentation callback](https://blog.xenoscr.net/2022/01/17/x86-Nirvana-Hooks.html)
+
+most anticheats, however, are kernel-level. they operate at the closest interface to the most sensitive operating system functions—for the purposes of this post, I'll point out the Windows NT kernel (ntoskrnl.exe)—but the cost is significant. kernel-level software can manipulate data structures, access the kernel memory address space and page tables, and most importantly bypass preventive measures since the code is assumed to be privileged
+
+the benefit to developers is that, so long as their code is written properly, game cheats can't bypass checks done at the kernel-level. an anticheat with access to the Windows kernel API can call [PsSetLoadImageNotifyRoutine](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/nf-ntddk-pssetloadimagenotifyroutine), for example, a routine that notifies a program when a system driver, user image, or dynamic linked library is loaded onto a system. barring any [major flaw](https://www.mdsec.co.uk/2021/06/bypassing-image-load-kernel-callbacks/), kernel-level anticheats are quite effective
+
+however, there are layers above kernel-level anticheats. how do you verify if the operating system itself hasn't been modified? that sets the stage for why EA chose to use Secure Boot
+
+Secure Boot works by verifying that certain modules are signed with a key trusted by the UEFI (or sometimes incorrectly called the BIOS). if the system tries to load a module that has not been signed or is signed with a key unknown to the firmware, it should ([not always!](https://dawidpotocki.com/en/2023/01/13/msi-insecure-boot/)) reject loading it. that gets to a common myth that if you enable Secure Boot without doing the necessary steps—more on those later on in this post—then your system is rendered permanently unusable
+
+at the time, Microsoft justified its decision by pointing to emerging bootkit malware, or code that would run before the system booted. most x86 motherboards will have keys managed by multiple Microsoft certificate authorities. the unfortunate consequence of this is that Microsoft basically controls UEFI signing. for most people, that isn't significant, but it has led to some [forced workarounds](https://habr.com/en/articles/446238/) that themselves are insecure
+
+Secure Boot's architecture follows [public key infrastructure](https://en.wikipedia.org/wiki/Public_key_infrastructure). in order to use Secure Boot, you need to use UEFI, the successor to BIOS, because there's no standard mechanism for what Secure Boot tries to do. UEFI can do cryptographic verification and store variables in NVRAM, which is a memory chip that is powered by the CMOS battery.
+
+to briefly cover how Secure Boot verifies modules:
+
+1. the motherboard manufacturer signs changes to the key exchange key (KEK) with a private key and stores the public key (the platform key) in the UEFI NVRAM
+2. the public key checks if the KEK was signed by the private key
+3. the KEK checks if the allowed signature DB (DB) or the disallowed signature DB (DBX) have been signed with a private key from one of the public keys on the system
+
+in order to do all of this, you need to have UEFI enabled. that involves two things that most people encountered (including myself) when trying to play *Battlefield 6*:
+
+1. the boot drive needs to be in GPT
+2. the UEFI cannot emulate the BIOS and Secure Boot actually needs to be enabled
+
+the first issue is where there have been a lot of issues and this is where EA's approach really broke down. there are still a lot of Windows 10 systems and a large percentage of them were installed with motherboards that had compatibility support module (CSM) enabled. this is also where some of the "bricking" is claimed to be happening. Secure Boot depends on the bootloader being in an EFI system partition (ESP) and Windows wants you to use an ESP with the GPT partition scheme rather than MBR. but if you install Windows with CSM, the drives on the system will be in MBR
+
+changing MBR to GPT is possible with [MBR2GPT](https://learn.microsoft.com/en-us/windows/deployment/mbr-to-gpt) but the disk you're configuring for GPT needs to have an active partition, it needs to have enough space for ESP (the exact amount differs depending on who you ask), and it needs to have Boot Configuration Data (BCD) for EFI variables. MBR2GPT isn't explicit about errors unless you go into the log file at C:\Windows\setupact.log, scroll to the last error, and understand what it's saying
+
+this is an area where I think EA fumbled the ball. the vast majority of Windows 11 systems have a separate issue and there's a lot of confusion about how Secure Boot works. telling the user that they don't have Secure Boot enabled could be as simple as enabling Secure Boot in the UEFI, or it could mean that their drive needs to be changed to a different partition scheme
+
+disabling CSM in the UEFI and enabling Secure Boot is the second issue and it's as simple as it sounds (at least it should be). an issue I haven't seen mentioned yet anywhere but I personally suffer from is when your GPU doesn't support UEFI. UEFI uses the Graphics Output Protocol (GOP) which my GPU, the RX 580, doesn't support, at least not without flashing a newer vBIOS
